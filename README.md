@@ -1,1 +1,0 @@
-# leanlayer-study-case
