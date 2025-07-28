@@ -1,3 +1,8 @@
+# Important Links
+
+### [Loom](https://www.loom.com/share/b406a7a6591a4fc38587a5333d902d39?sid=96805534-08f1-4187-af51-b73dd597cd43)
+### [Looker Dashboard](https://lookerstudio.google.com/u/0/reporting/a936de49-1efb-45dd-b62f-e93ceada830d/page/5jiSF)
+
 # Executive Summary
 
 Hi, I’m João Pedro.
@@ -14,56 +19,130 @@ This setup provides both a retrospective and forward-looking view of performance
 
 ## 1. “We missed Q1 bookings by 18%. What blew the forecast?”
 
-To answer this, I used the Deals table to compare forecast categories — especially Commit and Best Case — with actual deal outcomes.
+The analysis reveals that optimism was concentrated too early in the funnel. Many deals tagged as "Commit" or "Best Case" ultimately didn’t close — particularly those still in early stages like Prospecting. This points to a **systematic overconfidence in immature opportunities**, suggesting that forecast discipline needs to improve at the top of the pipeline.
 
-The dashboard view shows where these misclassifications are happening by **stage**, and also allows filtering by **owner**.
-
-✅ **Insight:** As you can see most misclassified Commit and Best Case deals came from Prospecting, meaning forecast confidence may have been overestimated at this point in the funnel.
+✅ **Insight:** Forecast accuracy broke down not due to last-minute slippage, but because of early-stage deals being treated as highly probable too soon. Improving qualification and stricter forecast gating criteria at these stages could significantly boost reliability.
 
 ---
 
 ## 2. “Where are deals stalling, and why?”
 
-Here, I used the snapshot data to calculate how many days each deal spent in the current stage.
+The pipeline is losing momentum in early stages — especially Prospecting — where deals tend to remain idle far too long. This suggests **front-of-funnel inefficiency**, likely caused by poor qualification or misalignment between sales activity and opportunity readiness.
 
-I flagged deals that remained too long — over 30 days — as **stalled**, and grouped them by stage and forecast category.
-
-The view shows both the **volume of stalled deals** and the **average time** in each stage, making it easier to identify bottlenecks.
-
-✅ **Insight:** The biggest slowdown happens in Prospecting — suggesting either re-qualification issues or lack of urgency in moving them forward.
+✅ **Insight:** Most pipeline friction isn’t happening late in the cycle — it’s happening right at the start. This slows velocity and clogs the funnel. Better qualification criteria and clearer ownership at early stages could help unblock the flow.
 
 ---
 
 ## 3. “Given today’s pipe, are we on track for next quarter?”
 
-This is where the Pacing table comes in. I calculated the expected value to close per owner, using forecast weights and historical conversion rates.
+Looking forward, the picture is mixed. While some reps are well-positioned, others face real risk. Gaps in pipeline value, pacing, or remaining time mean several contributors are **unlikely to reach their goals without intervention**.
 
-I then evaluated if each owner has enough pipeline, time, and pacing to hit their target — resulting in the **“Will Hit Target?”** metric: Yes, Probably Yes, Probably No, or No.
+✅ **Insight:** There’s still time to act — but only if action is targeted. The pacing analysis gives clear visibility into which owners need more deals, faster movement, or both. This enables focused support and prioritization before it’s too late.
 
-The dashboard gives a clear breakdown by **owner**, combining open deals, estimated value and expected pace.
-
-✅ **Insight:** While some owners are on track, others show gaps in either open pipeline or pace — giving leadership a chance to act now before the quarter ends.
-
+----
 
 # ETL Process Documentation
 
-This notebook performs an ETL (Extract, Transform, Load) process structured as follows:
+This notebook performs an ETL (Extract, Transform, Load) pipeline focused on sales and pipeline data, particularly combining pacing, full deals, and forecast information. Below is a breakdown of the key stages with real examples from the notebook.
 
-## 1. Importing necessary libraries
-The first step involves importing essential Python libraries, primarily `pandas`, which is used for handling and manipulating data in tabular form. These imports ensure that all required functions and tools are available for the rest of the notebook.
+---
 
-## 2. Loading data from external sources
-Data is read from one or more external sources such as CSV, Excel, or other file formats. The data is loaded into DataFrames, allowing for further manipulation using the pandas library.
+## 1. Importing Necessary Libraries
 
-## 3. Performing data transformations
-After loading, various transformations are applied to the datasets. These can include creating new calculated columns, converting data types, filtering rows, or formatting string and date values to ensure consistency and usability.
+The script starts by importing essential Python libraries such as:
 
-## 4. Aggregating or grouping data
-The data is then grouped by one or more columns to summarize it, usually using aggregation functions such as sum, mean, or count. This step is crucial for consolidating the data into a more usable format, especially when preparing for reporting or analysis.
+```python
+import pandas as pd
+import numpy as np
+```
 
-## 5. Merging or joining datasets
-Multiple DataFrames are combined through merge or join operations, typically using a common key. This integrates information from different sources into a single, cohesive dataset.
+These are used for data manipulation, cleaning, and analysis throughout the notebook.
 
-## 6. Exporting processed data
-Once the data has been cleaned, transformed, and merged, it is saved to a new file—such as a CSV or Excel spreadsheet—for storage, sharing, or input into another system or tool.
+---
+
+## 2. Loading Data from External Sources
+
+Data is read from multiple CSV files, each representing a key dataset used in the analysis:
+
+```python
+pacing_df = pd.read_csv("data/01_raw/pacing.csv")
+full_deals_df = pd.read_csv("data/01_raw/full_deals.csv")
+forecast_df = pd.read_csv("data/01_raw/forecast.csv")
+```
+
+Each of these files corresponds to a business process component (e.g., actual deals, projected pipeline, sales forecast).
+
+---
+
+## 3. Performing Data Transformations
+
+Several transformations are applied to clean and prepare the data. Key steps include:
+
+- **Date conversion**:
+  ```python
+  pacing_df["date"] = pd.to_datetime(pacing_df["date"])
+  ```
+
+- **Adding derived columns to `pacing_df`**:
+  ```python
+  pacing_df["gap"] = pacing_df["target_amount"] - pacing_df["estimated_value"]
+  pacing_df["pacing"] = pacing_df["estimated_value"] / pacing_df["target_amount"]
+  ```
+
+- **Merging owners into deals**:
+  ```python
+  full_deals_df = full_deals_df.merge(
+      pacing_df[["owner_id", "name"]],
+      on="owner_id",
+      how="left"
+  )
+  ```
+
+- **Rounding values for consistency**:
+  ```python
+  pacing_df[["estimated_value", "gap", "target_amount"]] = pacing_df[["estimated_value", "gap", "target_amount"]].round(0).astype(float)
+  pacing_df["pacing"] = pacing_df["pacing"].round(2).astype(float)
+  ```
+
+---
+
+## 4. Aggregating or Grouping Data
+
+Although not heavily used in the visible cells, aggregations like `.groupby()` and `.sum()` or `.mean()` are often used to consolidate pacing or forecast values by month, team, or owner.
+
+---
+
+## 5. Merging or Joining Datasets
+
+Multiple datasets are joined to enrich the final view:
+
+- **Deal owners merged into `full_deals_df`**:
+  ```python
+  full_deals_df = full_deals_df.merge(
+      pacing_df[["owner_id", "name"]],
+      on="owner_id",
+      how="left"
+  )
+  ```
+
+- Additional merges may happen in later stages when `forecast_df` is aligned with the other datasets.
+
+---
+
+## 6. Exporting Processed Data
+
+The processed data is then exported back into files for further use in reporting or dashboard tools:
+
+```python
+pacing_df.to_csv("data/02_clean/pacing_clean.csv", index=False)
+full_deals_df.to_csv("data/02_clean/full_deals_enriched.csv", index=False)
+```
+
+---
+
+## Notes
+
+- The ETL pipeline is designed for integration with Looker or other BI tools.
+- Data sources are organized by raw and clean folders (`data/01_raw/` and `data/02_clean/`).
+- No database or API connections are involved; the data is handled locally through CSVs.
 
